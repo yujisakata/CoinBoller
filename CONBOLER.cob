@@ -5,7 +5,7 @@
        WORKING-STORAGE   SECTION.
       *FOR MESSAGE
        01 SEL-LV.
-           03 SEL-LV-HEADER PIC X(15) VALUE "You select LV- ".
+           03 SEL-LV-HEADER PIC X(15) VALUE "YOU SELECT LV- ".
            03 SEL-LV-VAL PIC X(1).
       *FOR SCREEN
        01 POS-INDEX-LIST VALUE "abcdefghijklmnopqrstuvwxyz".
