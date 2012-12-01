@@ -51,13 +51,22 @@
            03 DOWN-EDGE PIC X.
            03 LEFT-EDGE PIC X.
            03 RIGHT-EDGE PIC X.
+       01 CHK-STACK.
+           03 CHK-STACK-XY OCCURS 200.
+               05 CHK-STACK-X PIC 9(2).
+               05 CHK-STACK-Y PIC 9(2).
+           03 CHK-STACK-C PIC 9(3) VALUE 0.
+       77 CHK-STACK-C-PREV PIC 9(3) VALUE 0.
       *WK
        01 PXY.
            03 PX PIC 9(2).
            03 PY PIC 9(2).
        77 FG-A PIC X.
        77 N-NEAR-MINE PIC 9.
-
+       01 CHK-XY.
+           03 CHK-X PIC 9(2).
+           03 CHK-Y PIC 9(2).
+       77 DUMMY PIC X.
       *CNT
        77 CNTI PIC 9(3).
        77 CNTJ PIC 9(3).
@@ -109,6 +118,7 @@
                            MOVE "A" TO FG-A
                    END-IF
                END-PERFORM
+               DISPLAY "MINE " PXY
                MOVE ISMINE TO MINE-CELL(PY, PX)
            END-PERFORM.
        INIT-SCREEN.
@@ -148,25 +158,48 @@
                WHEN "u"
                    MOVE UNKNOWN TO CELL(Y, X)
                WHEN "o"
-                   PERFORM CHK-MINE THRU EXIT-CHK-MINE
+                   IF MINE-CELL(Y,X) = ISMINE
+                       THEN
+                           MOVE "E" TO ON-GAME
+                       ELSE
+                           PERFORM CHK-START THRU EXIT-CHK-START
+                   END-IF
                WHEN OTHER
                    CONTINUE
            END-EVALUATE.
        EXIT-PLAY.
            EXIT.
 
+       CHK-START.
+           ADD 1 TO CHK-STACK-C.
+           MOVE X TO CHK-STACK-X(CHK-STACK-C).
+           MOVE Y TO CHK-STACK-Y(CHK-STACK-C).
+           PERFORM CHK-MINE THRU EXIT-CHK-MINE UNTIL CHK-STACK-C < 1.
+       EXIT-CHK-START.
+           EXIT.
+
        CHK-MINE.
-           IF MINE-CELL(Y,X) = ISMINE
+           PERFORM DISP-CHK-STACK THRU EXIT-DISP-CHK-STACK.
+           MOVE CHK-STACK-XY(CHK-STACK-C) TO CHK-XY.
+           SUBTRACT 1 FROM CHK-STACK-C.
+           MOVE CHK-STACK-C TO CHK-STACK-C-PREV.
+           PERFORM CHK-NEAR THRU EXIT-CHK-NEAR
+           DISPLAY "CHK " CHK-XY.
+           DISPLAY "NEAR-MINE= " N-NEAR-MINE.
+           IF N-NEAR-MINE = 0
                THEN
-                   MOVE "E" TO ON-GAME
+                   MOVE NEAR-MINE(9) TO CELL(CHK-Y,CHK-X)
+                   MOVE CHK-STACK-C-PREV TO CNTI
+                   PERFORM VARYING CNTI
+                       FROM 1 BY 1 UNTIL CNTI > CHK-STACK-C
+                       MOVE NEAR-MINE(9)
+                           TO CELL(CHK-STACK-Y(CNTI), CHK-STACK-X(CNTI))
+                   END-PERFORM
+                   PERFORM CHK-MINE THRU EXIT-CHK-MINE
+                       UNTIL CHK-STACK-C < 1
                ELSE
-                   PERFORM CHK-NEAR THRU EXIT-CHK-NEAR
-                   IF N-NEAR-MINE = 0
-                       THEN
-                           MOVE NEAR-MINE(9) TO CELL(Y,X)
-                       ELSE
-                           MOVE NEAR-MINE(N-NEAR-MINE) TO CELL(Y,X)
-                   END-IF
+                   MOVE NEAR-MINE(N-NEAR-MINE) TO CELL(CHK-Y,CHK-X)
+                   MOVE CHK-STACK-C-PREV TO CHK-STACK-C
            END-IF.
        EXIT-CHK-MINE.
            EXIT.
@@ -220,62 +253,114 @@
            DISPLAY EDGE.
            IF UP-EDGE = " "
                THEN
-                   ADD MINE-CELL(Y - 1,X) TO N-NEAR-MINE
+                   ADD MINE-CELL(CHK-Y - 1,CHK-X) TO N-NEAR-MINE
+                   IF CELL(CHK-Y - 1,CHK-X) = UNKNOWN OR SUSPECT
+                       THEN
+                           ADD 1 TO CHK-STACK-C
+                           COMPUTE CHK-STACK-X(CHK-STACK-C) = CHK-X
+                           COMPUTE CHK-STACK-Y(CHK-STACK-C) = CHK-Y - 1
+                   END-IF
            END-IF.
            IF UP-EDGE = " " AND LEFT-EDGE = " "
                THEN
-                   ADD MINE-CELL(Y - 1,X - 1) TO N-NEAR-MINE
+                   ADD MINE-CELL(CHK-Y - 1,CHK-X - 1) TO N-NEAR-MINE
+                   IF CELL(CHK-Y - 1,CHK-X - 1) = UNKNOWN OR SUSPECT
+                       THEN
+                           ADD 1 TO CHK-STACK-C
+                           COMPUTE CHK-STACK-X(CHK-STACK-C) = CHK-X - 1
+                           COMPUTE CHK-STACK-Y(CHK-STACK-C) = CHK-Y - 1
+                   END-IF
            END-IF.
            IF LEFT-EDGE = " "
                THEN
-                   ADD MINE-CELL(Y,X - 1) TO N-NEAR-MINE
+                   ADD MINE-CELL(CHK-Y,CHK-X - 1) TO N-NEAR-MINE
+                   IF CELL(CHK-Y,CHK-X - 1) = UNKNOWN OR SUSPECT
+                       THEN
+                           ADD 1 TO CHK-STACK-C
+                           COMPUTE CHK-STACK-X(CHK-STACK-C) = CHK-X - 1
+                           COMPUTE CHK-STACK-Y(CHK-STACK-C)  = CHK-Y
+                   END-IF
            END-IF.
            IF DOWN-EDGE = " " AND LEFT-EDGE = " "
                THEN
-                   ADD MINE-CELL(Y + 1,X - 1) TO N-NEAR-MINE
+                   ADD MINE-CELL(CHK-Y + 1,CHK-X - 1) TO N-NEAR-MINE
+                   IF CELL(CHK-Y + 1,CHK-X - 1) = UNKNOWN OR SUSPECT
+                       THEN
+                           ADD 1 TO CHK-STACK-C
+                           COMPUTE CHK-STACK-X(CHK-STACK-C) = CHK-X - 1
+                           COMPUTE CHK-STACK-Y(CHK-STACK-C)  = CHK-Y + 1
+                   END-IF
            END-IF.
            IF DOWN-EDGE = " "
                THEN
-                   ADD MINE-CELL(Y + 1,X) TO N-NEAR-MINE
+                   ADD MINE-CELL(CHK-Y + 1,CHK-X) TO N-NEAR-MINE
+                   IF CELL(CHK-Y + 1,CHK-X) = UNKNOWN OR SUSPECT
+                       THEN
+                           ADD 1 TO CHK-STACK-C
+                           COMPUTE CHK-STACK-X(CHK-STACK-C) = CHK-X
+                           COMPUTE CHK-STACK-Y(CHK-STACK-C)  = CHK-Y + 1
+                   END-IF
            END-IF.
            IF DOWN-EDGE = " " AND RIGHT-EDGE = " "
                THEN
-                   ADD MINE-CELL(Y + 1,X + 1) TO N-NEAR-MINE
+                   ADD MINE-CELL(CHK-Y + 1,CHK-X + 1) TO N-NEAR-MINE
+                   IF CELL(CHK-Y + 1,CHK-X + 1) = UNKNOWN OR SUSPECT
+                       THEN
+                           ADD 1 TO CHK-STACK-C
+                           COMPUTE CHK-STACK-X(CHK-STACK-C) = CHK-X + 1
+                           COMPUTE CHK-STACK-Y(CHK-STACK-C)  = CHK-Y + 1
+                   END-IF
            END-IF.
            IF RIGHT-EDGE = " "
                THEN
-                   ADD MINE-CELL(Y ,X + 1) TO N-NEAR-MINE
+                   ADD MINE-CELL(CHK-Y ,CHK-X + 1) TO N-NEAR-MINE
+                   IF CELL(CHK-Y ,CHK-X + 1) = UNKNOWN OR SUSPECT
+                       THEN
+                           ADD 1 TO CHK-STACK-C
+                           COMPUTE CHK-STACK-X(CHK-STACK-C) = CHK-X + 1
+                           COMPUTE CHK-STACK-Y(CHK-STACK-C)  = CHK-Y
+                   END-IF
            END-IF.
            IF UP-EDGE = " " AND RIGHT-EDGE = " "
                THEN
-                   ADD MINE-CELL(Y - 1  ,X + 1) TO N-NEAR-MINE
+                   ADD MINE-CELL(CHK-Y - 1  ,CHK-X + 1) TO N-NEAR-MINE
+                   IF CELL(CHK-Y - 1  ,CHK-X + 1) = UNKNOWN OR SUSPECT
+                       THEN
+                           ADD 1 TO CHK-STACK-C
+                           COMPUTE CHK-STACK-X(CHK-STACK-C) = CHK-X + 1
+                           COMPUTE CHK-STACK-Y(CHK-STACK-C) = CHK-Y - 1
+                   END-IF
            END-IF.
-           DISPLAY N-NEAR-MINE.
        EXIT-CHK-NEAR.
            EXIT.
 
        CHK-EDGE.
            INITIALIZE EDGE.
-           IF X = 1
+           IF CHK-X = 1
                THEN
                    MOVE "E" TO LEFT-EDGE
                ELSE
-                   IF X = WIDTH
+                   IF CHK-X = WIDTH
                        THEN
                            MOVE "E" TO RIGHT-EDGE
                    END-IF
            END-IF.
-           IF Y = 1
+           IF CHK-Y = 1
                THEN
                    MOVE "E" TO UP-EDGE
                ELSE
-                   IF X = HEIGHT
+                   IF CHK-Y = HEIGHT
                        THEN
                            MOVE "E" TO DOWN-EDGE
                    END-IF
            END-IF.
        EXIT-CHK-EDGE.
            EXIT.
-
-
-
+       DEBUG SECTION.
+       DISP-CHK-STACK.
+           PERFORM VARYING CNTI FROM 1 BY 1 UNTIL CNTI > CHK-STACK-C
+               DISPLAY "- " CNTI " " CHK-STACK-X(CNTI) " "
+       CHK-STACK-Y(CNTI) " " CELL(CHK-STACK-Y(CNTI), CHK-STACK-X(CNTI))
+           END-PERFORM.
+       EXIT-DISP-CHK-STACK.
+           EXIT.
