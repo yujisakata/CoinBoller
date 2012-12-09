@@ -3,11 +3,17 @@
        PROGRAM-ID.       CONBOLER.
        DATA              DIVISION.
        WORKING-STORAGE   SECTION.
-      *FOR MESSAGE
-       01 SEL-LV.
-           03 SEL-LV-HEADER PIC X(15) VALUE "YOU SELECT LV- ".
-           03 SEL-LV-VAL PIC X(1).
-      *FOR SCREEN
+      *INIT
+       77 LV    PIC X(1).
+       01 MAP-CONF.
+           03 ISSET    PIC X(1).
+           03 WIDTH    PIC 9(2).
+           03 HEIGHT   PIC 9(2).
+           03 N-MINE     PIC 9(2).
+       01 CONF-B PIC X(7) VALUE "Y090910".
+       01 CONF-I PIC X(7) VALUE "Y161640".
+       01 CONF-V PIC X(7) VALUE "Y261699".
+      *SCREEN
        01 POS-INDEX-LIST VALUE "abcdefghijklmnopqrstuvwxyz".
            03 POS-INDEX PIC X OCCURS 26.
        01 CMN-IDX-DISP.
@@ -26,16 +32,6 @@
        01 MINE-MARK.
            03 ISSAFE PIC 9 VALUE 0.
            03 ISMINE PIC 9 VALUE 1.
-      *FOR START
-       77 LV    PIC X(1).
-       01 MAP-CONF.
-           03 ISSET    PIC X(1).
-           03 WIDTH    PIC 9(2).
-           03 HEIGHT   PIC 9(2).
-           03 N-MINE     PIC 9(2).
-       01 CONF-B PIC X(7) VALUE "Y090910".
-       01 CONF-I PIC X(7) VALUE "Y161640".
-       01 CONF-V PIC X(7) VALUE "Y261699".
       *MAP
        01 GAME-MAP.
            03 CLMN OCCURS 16.
@@ -43,8 +39,9 @@
                07 CELL PIC X OCCURS 26.
              05 MINE-ROW.
                07 MINE-CELL PIC 9 OCCURS 26.
+           03 N-OPEN PIC 9(3).
        77 FIXED-POS PIC 9(3).
-      *CTL
+      *CONTROLL
        77 ON-GAME PIC X.
        01 EDGE.
            03 UP-EDGE PIC X.
@@ -57,7 +54,20 @@
                05 CHK-STACK-Y PIC 9(2).
            03 CHK-STACK-C PIC 9(3) VALUE 0.
        77 CHK-STACK-C-PREV PIC 9(3) VALUE 0.
-      *WK
+       01 CMD-STR.
+          03 X-STR PIC X.
+          03 Y-STR PIC X.
+          03 C-STR PIC X.
+       01 CMD.
+          03 X PIC 9(2).
+          03 Y PIC 9(2).
+          03 C PIC X.
+        01 CURRENT-TIME.
+            05 FILLER PIC 9(4).
+            05 CT-SECONDS PIC 9(2).
+            05 CT-HUNDREDTHS-OF-SECS PIC 9(2).
+        77 SEED PIC 9(4).
+      *JUST WORK
        01 PXY.
            03 PX PIC 9(2).
            03 PY PIC 9(2).
@@ -67,30 +77,35 @@
            03 CHK-X PIC 9(2).
            03 CHK-Y PIC 9(2).
        77 DUMMY PIC X.
-      *CNT
+       77 DUMMY-N PIC 9(1)V9(5).
+      *COUNTER
        77 CNTI PIC 9(3).
        77 CNTJ PIC 9(3).
-      *CMD
-       01 CMD-STR.
-          03 X-STR PIC X.
-          03 Y-STR PIC X.
-          03 C-STR PIC X.
-       01 CMD.
-          03 X PIC 9(2).
-          03 Y PIC 9(2).
-          03 C PIC X.
 
        PROCEDURE        DIVISION.
        MAIN SECTION.
-           PERFORM SEL-LEVEL THRU EXIT-INIT.
+           PERFORM INIT-START THRU EXIT-INIT.
+           DISPLAY "N-OPEN" N-OPEN.
            PERFORM DISP THRU EXIT-PLAY UNTIL ON-GAME NOT = " ".
+           EVALUATE ON-GAME
+               WHEN 'E'
+                   DISPLAY 'YOU LOSE'
+               WHEN 'W'
+                   DISPLAY 'YOU WIN'
+               WHEN OTHER
+                   CONTINUE
+           END-EVALUATE.
        STOP RUN.
 
        INIT SECTION.
+       INIT-START.
+       ACCEPT CURRENT-TIME FROM TIME.
+       COMPUTE SEED = CT-SECONDS * 60 + CT-HUNDREDTHS-OF-SECS.
+       COMPUTE DUMMY-N = FUNCTION RANDOM(SEED).
        SEL-LEVEL.
-           DISPLAY "Welcome to COinBOLer!".
+           DISPLAY "WELCOME TO COINBOLLER!".
            PERFORM UNTIL ISSET = "Y"
-               DISPLAY "Select Level (b/i/v)"
+               DISPLAY "SELECT b)EGGINER/ i)NTERMERDIATE/ v)ETERAN"
                ACCEPT LV
                EVALUATE LV
                    WHEN "b"
@@ -100,12 +115,12 @@
                    WHEN "v"
                        MOVE CONF-V TO MAP-CONF
                    WHEN OTHER
-                       DISPLAY "Wrong input"
+                       DISPLAY "WRONG INPUT"
                        CONTINUE
                END-EVALUATE
            END-PERFORM.
-           MOVE LV TO SEL-LV-VAL.
-           DISPLAY SEL-LV.
+           COMPUTE N-OPEN = (WIDTH * HEIGHT) - N-MINE.
+           DISPLAY 'YOU SELECT LV-' LV ' ' N-OPEN.
        SET-MINE.
            PERFORM VARYING CNTI FROM 1 BY 1 UNTIL CNTI > N-MINE
                MOVE "A" TO FG-A
@@ -138,9 +153,10 @@
        DISP.
            PERFORM SCREEN-OUT THRU EXIT-SCREEN-OUT.
            PERFORM MINE-SCREEN-OUT THRU EXIT-MINE-SCREEN-OUT.
+           DISPLAY "N-OPEN= " N-OPEN.
        GET-INPUT.
            PERFORM WITH TEST AFTER UNTIL C NOT = " "
-               DISPLAY "Guess (XYC(mINE/oK/sUSPECT/uNKNOWN)): "
+               DISPLAY "GUESS XYC m)INE/o)K/s)USPECT/u)NKNOWN : "
                ACCEPT CMD-STR
                PERFORM PARSE-CMD THRU EXIT-PARSE-CMD
                IF CELL(Y, X) NOT = "O" AND NOT = "?" AND NOT = "F"
@@ -167,6 +183,11 @@
                WHEN OTHER
                    CONTINUE
            END-EVALUATE.
+       CHK-WIN.
+           IF N-OPEN = 0
+               THEN
+                   MOVE "W" TO ON-GAME
+           END-IF.
        EXIT-PLAY.
            EXIT.
 
@@ -189,6 +210,7 @@
            IF N-NEAR-MINE = 0
                THEN
                    MOVE NEAR-MINE(9) TO CELL(CHK-Y,CHK-X)
+                   SUBTRACT 1 FROM N-OPEN
                    MOVE CHK-STACK-C-PREV TO CNTI
                    PERFORM VARYING CNTI
                        FROM 1 BY 1 UNTIL CNTI > CHK-STACK-C
@@ -199,11 +221,11 @@
                        UNTIL CHK-STACK-C < 1
                ELSE
                    MOVE NEAR-MINE(N-NEAR-MINE) TO CELL(CHK-Y,CHK-X)
+                   SUBTRACT 1 FROM N-OPEN
                    MOVE CHK-STACK-C-PREV TO CHK-STACK-C
            END-IF.
        EXIT-CHK-MINE.
            EXIT.
-
 
        CMN SECTION.
        SCREEN-OUT.
@@ -237,15 +259,6 @@
                    END-IF
            END-IF.
        EXIT-PARSE-CMD.
-       MINE-SCREEN-OUT.
-           DISPLAY CMN-IDX-DISP.
-           PERFORM VARYING CNTI FROM 1 BY 1 UNTIL CNTI > HEIGHT
-               MOVE POS-INDEX(CNTI) TO ROW-IDX
-               MOVE MINE-ROW(CNTI) TO ROW-BODY
-               DISPLAY ROW-DISP
-           END-PERFORM.
-       EXIT-MINE-SCREEN-OUT.
-           EXIT.
 
        CHK-NEAR.
            PERFORM CHK-EDGE THRU EXIT-CHK-EDGE.
@@ -356,7 +369,17 @@
            END-IF.
        EXIT-CHK-EDGE.
            EXIT.
+
        DEBUG SECTION.
+       MINE-SCREEN-OUT.
+           DISPLAY CMN-IDX-DISP.
+           PERFORM VARYING CNTI FROM 1 BY 1 UNTIL CNTI > HEIGHT
+               MOVE POS-INDEX(CNTI) TO ROW-IDX
+               MOVE MINE-ROW(CNTI) TO ROW-BODY
+               DISPLAY ROW-DISP
+           END-PERFORM.
+       EXIT-MINE-SCREEN-OUT.
+           EXIT.
        DISP-CHK-STACK.
            PERFORM VARYING CNTI FROM 1 BY 1 UNTIL CNTI > CHK-STACK-C
                DISPLAY "- " CNTI " " CHK-STACK-X(CNTI) " "
