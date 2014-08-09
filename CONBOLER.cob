@@ -85,7 +85,7 @@
        PROCEDURE        DIVISION.
        MAIN SECTION.
            PERFORM INIT-START THRU EXIT-INIT.
-           DISPLAY "N-OPEN" N-OPEN.
+      *    DISPLAY "N-OPEN" N-OPEN.
            PERFORM DISP THRU EXIT-PLAY UNTIL ON-GAME NOT = " ".
            EVALUATE ON-GAME
                WHEN 'E'
@@ -133,7 +133,7 @@
                            MOVE "A" TO FG-A
                    END-IF
                END-PERFORM
-               DISPLAY "MINE " PXY
+      *        DISPLAY "MINE " PXY
                MOVE ISMINE TO MINE-CELL(PY, PX)
            END-PERFORM.
        INIT-SCREEN.
@@ -152,8 +152,8 @@
        PLAY SECTION.
        DISP.
            PERFORM SCREEN-OUT THRU EXIT-SCREEN-OUT.
-           PERFORM MINE-SCREEN-OUT THRU EXIT-MINE-SCREEN-OUT.
-           DISPLAY "N-OPEN= " N-OPEN.
+      *    PERFORM MINE-SCREEN-OUT THRU EXIT-MINE-SCREEN-OUT.
+      *    DISPLAY "N-OPEN= " N-OPEN.
        GET-INPUT.
            PERFORM WITH TEST AFTER UNTIL C NOT = " "
                DISPLAY "GUESS XYC m)INE/o)K/s)USPECT/u)NKNOWN : "
@@ -164,7 +164,7 @@
                        DISPLAY "NOT EFFECTIVE COMMAND"
                        MOVE " " TO C
            END-PERFORM.
-           DISPLAY CMD.
+      *    DISPLAY CMD.
        EXECUTE-CMD.
            EVALUATE C
                WHEN "m"
@@ -200,13 +200,13 @@
            EXIT.
 
        CHK-MINE.
-           PERFORM DISP-CHK-STACK THRU EXIT-DISP-CHK-STACK.
+      *    PERFORM DISP-CHK-STACK THRU EXIT-DISP-CHK-STACK.
            MOVE CHK-STACK-XY(CHK-STACK-C) TO CHK-XY.
            SUBTRACT 1 FROM CHK-STACK-C.
            MOVE CHK-STACK-C TO CHK-STACK-C-PREV.
            PERFORM CHK-NEAR THRU EXIT-CHK-NEAR
-           DISPLAY "CHK " CHK-XY.
-           DISPLAY "NEAR-MINE= " N-NEAR-MINE.
+      *    DISPLAY "CHK " CHK-XY.
+      *    DISPLAY "NEAR-MINE= " N-NEAR-MINE.
            IF N-NEAR-MINE = 0
                THEN
                    MOVE NEAR-MINE(9) TO CELL(CHK-Y,CHK-X)
@@ -263,7 +263,7 @@
        CHK-NEAR.
            PERFORM CHK-EDGE THRU EXIT-CHK-EDGE.
            INITIALIZE N-NEAR-MINE.
-           DISPLAY EDGE.
+      *    DISPLAY EDGE.
            IF UP-EDGE = " "
                THEN
                    ADD MINE-CELL(CHK-Y - 1,CHK-X) TO N-NEAR-MINE
